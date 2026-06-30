@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Academy Portal</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --green: #16a34a;
+    --red: #dc2626;
+    --yellow: #ca8a04;
+    --bg: #f3f4f6;
+    --card: #ffffff;
+    --border: #e5e7eb;
+    --text: #111827;
+    --muted: #6b7280;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  .container { max-width: 720px; margin: 0 auto; padding: 16px; }
+  header.topbar {
+    background: var(--primary); color: white; padding: 14px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  header.topbar h1 { font-size: 18px; margin: 0; }
+  header.topbar button {
+    background: rgba(255,255,255,0.15); border: none; color: white;
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; margin-bottom: 14px;
+  }
+  h2 { font-size: 17px; margin: 0 0 12px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input, select {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--border);
+    border-radius: 7px; font-size: 14px; background: white;
+  }
+  button.primary {
+    background: var(--primary); color: white; border: none; padding: 10px 16px;
+    border-radius: 7px; font-size: 14px; cursor: pointer; margin-top: 12px; width: 100%;
+  }
+  button.primary:hover { background: var(--primary-dark); }
+  button.secondary {
+    background: white; color: var(--primary); border: 1px solid var(--primary);
+    padding: 8px 14px; border-radius: 7px; font-size: 13px; cursor: pointer;
+  }
+  button.danger { background: var(--red); color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .nav-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .nav-tile {
+    background: white; border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 10px; text-align: center; cursor: pointer; font-size: 14px; font-weight: 600;
+  }
+  .nav-tile:hover { border-color: var(--primary); color: var(--primary); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; }
+  .status-pill {
+    display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  }
+  .pill-present { background: #dcfce7; color: var(--green); }
+  .pill-absent { background: #fee2e2; color: var(--red); }
+  .pill-mid { background: #fef9c3; color: var(--yellow); }
+  .toggle-btn {
+    border: 1px solid var(--border); background: white; padding: 6px 12px;
+    border-radius: 6px; cursor: pointer; font-size: 12px;
+  }
+  .toggle-btn.active-present { background: var(--green); color: white; border-color: var(--green); }
+  .toggle-btn.active-absent { background: var(--red); color: white; border-color: var(--red); }
+  .msg { padding: 10px 12px; border-radius: 7px; font-size: 13px; margin-bottom: 12px; }
+  .msg.error { background: #fee2e2; color: var(--red); }
+  .msg.success { background: #dcfce7; color: var(--green); }
+  .hidden { display: none !important; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .credential-box {
+    background: #eff6ff; border: 1px dashed var(--primary); border-radius: 8px;
+    padding: 12px; font-size: 14px; margin-top: 10px;
+  }
+  .back-link { color: var(--primary); font-size: 13px; cursor: pointer; display: inline-block; margin-bottom: 10px; }
+  .schedule-day { font-weight: 700; margin-top: 14px; margin-bottom: 4px; font-size: 13px; color: var(--primary); }
+  .schedule-slot { padding: 8px; background: #f9fafb; border-radius: 6px; margin-bottom: 6px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+// ============================================================================
+// CONFIG — paste your deployed Apps Script Web App URL below
+// ============================================================================
+const API_URL = 'https://script.google.com/macros/s/AKfycbxGMIpgvXVCdWprw1dY5MGduC5MV-koDOBn2IHamsKSNetIQN4IO7i7jP4CDEs-nw23/exec';
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+// ============================================================================
+// STATE
+// ============================================================================
+let state = {
+  token: localStorage.getItem('token') || null,
+  role: localStorage.getItem('role') || null,
+  name: localStorage.getItem('name') || null,
+  userId: localStorage.getItem('userId') || null,
+  standard: localStorage.getItem('standard') || null,
+  board: localStorage.getItem('board') || null,
+};
+
+function saveSession(data, role) {
+  state.token = data.token;
+  state.role = role;
+  state.name = data.name;
+  state.userId = role === 'teacher' ? data.teacherId : data.studentId;
+  state.standard = data.standard || null;
+  state.board = data.board || null;
+  localStorage.setItem('token', state.token);
+  localStorage.setItem('role', state.role);
+  localStorage.setItem('name', state.name);
+  localStorage.setItem('userId', state.userId);
+  if (state.standard) localStorage.setItem('standard', state.standard);
+  if (state.board) localStorage.setItem('board', state.board);
+}
+
+function clearSession() {
+  localStorage.clear();
+  state = { token: null, role: null, name: null, userId: null, standard: null, board: null };
+}
+
+// ============================================================================
+// API HELPER
+// ============================================================================
+async function api(action, payload = {}, method = 'POST') {
+  const body = { action, token: state.token, ...payload };
+  if (method === 'GET') {
+    const qs = new URLSearchParams(Object.entries(body).filter(([,v]) => v !== undefined && v !== null));
+    const res = await fetch(API_URL + '?' + qs.toString());
+    return res.json();
+  }
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+// ============================================================================
+// ROUTER
+// ============================================================================
+const app = document.getElementById('app');
+
+function render() {
+  if (!state.token) {
+    renderLogin();
+  } else {
+    renderDashboard();
+  }
+}
+
+function setApp(html) { app.innerHTML = html; }
+
+// ============================================================================
+// LOGIN SCREEN
+// ============================================================================
+function renderLogin() {
+  setApp(`
+    <div class="container" style="margin-top:60px;">
+      <div class="card">
+        <h2 style="text-align:center;">📘 Academy Portal</h2>
+        <div id="loginMsg"></div>
+        <div class="row" style="margin-bottom:14px;">
+          <button class="secondary" id="tabTeacher" style="flex:1;">Teacher Login</button>
+          <button class="secondary" id="tabStudent" style="flex:1;">Student Login</button>
+        </div>
+        <div id="loginForm"></div>
+        <p class="muted" style="text-align:center; margin-top:16px; cursor:pointer;" id="adminLink">Admin: create teacher account</p>
+      </div>
+    </div>
+  `);
+  let mode = 'teacher';
+  function renderForm() {
+    document.getElementById('loginForm').innerHTML = mode === 'teacher' ? `
+      <label>Username</label>
+      <input id="username" type="text" placeholder="teacher username">
+      <label>Password</label>
+      <input id="password" type="password" placeholder="password">
+      <button class="primary" id="loginBtn">Log In</button>
+    ` : `
+      <label>Phone Number (username)</label>
+      <input id="username" type="text" placeholder="10-digit phone number">
+      <label>4-digit PIN</label>
+      <input id="password" type="password" placeholder="PIN" maxlength="4">
+      <button class="primary" id="loginBtn">Log In</button>
+    `;
+    document.getElementById('loginBtn').onclick = () => doLogin(mode);
+  }
+  document.getElementById('tabTeacher').onclick = () => { mode = 'teacher'; renderForm(); };
+  document.getElementById('tabStudent').onclick = () => { mode = 'student'; renderForm(); };
+  document.getElementById('adminLink').onclick = renderAdminPanel;
+  renderForm();
+}
+
+async function doLogin(mode) {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+  const msgEl = document.getElementById('loginMsg');
+  if (!username || !password) { msgEl.innerHTML = msg('Please fill both fields', 'error'); return; }
+  const action = mode === 'teacher' ? 'teacherLogin' : 'studentLogin';
+  const res = await api(action, { username, password });
+  if (res.success) {
+    saveSession(res, mode);
+    render();
+  } else {
+    msgEl.innerHTML = msg(res.error || 'Login failed', 'error');
+  }
+}
+
+function renderAdminPanel() {
+  setApp(`
+    <div class="container" style="margin-top:60px;">
+      <div class="card">
+        <span class="back-link" id="back">&larr; Back to login</span>
+        <h2>Create Teacher Account</h2>
+        <div id="adminMsg"></div>
+        <label>Admin Password</label>
+        <input id="adminPw" type="password">
+        <label>Teacher Name</label>
+        <input id="tName" type="text">
+        <label>Username</label>
+        <input id="tUser" type="text">
+        <label>Password</label>
+        <input id="tPass" type="password">
+        <button class="primary" id="createBtn">Create Teacher</button>
+      </div>
+    </div>
+  `);
+  document.getElementById('back').onclick = renderLogin;
+  document.getElementById('createBtn').onclick = async () => {
+    const res = await api('adminCreateTeacher', {
+      adminPassword: document.getElementById('adminPw').value,
+      name: document.getElementById('tName').value,
+      username: document.getElementById('tUser').value,
+      password: document.getElementById('tPass').value
+    });
+    const msgEl = document.getElementById('adminMsg');
+    msgEl.innerHTML = res.success ? msg('Teacher account created.', 'success') : msg(res.error, 'error');
+  };
+}
+
+function msg(text, type) { return `<div class="msg ${type}">${text}</div>`; }
+
+// ============================================================================
+// DASHBOARD (post-login home)
+// ============================================================================
+function topbar() {
+  return `
+    <header class="topbar">
+      <h1>👋 ${state.name}</h1>
+      <button id="logoutBtn">Log Out</button>
+    </header>`;
+}
+
+function attachLogout() {
+  document.getElementById('logoutBtn').onclick = async () => {
+    await api('logout', {});
+    clearSession();
+    render();
+  };
+}
+
+function renderDashboard() {
+  const tiles = state.role === 'teacher' ? [
+    { label: '✅ Attendance', fn: renderTeacherAttendance },
+    { label: '📝 Marks', fn: renderTeacherMarks },
+    { label: '🗓️ Schedule', fn: renderTeacherSchedule },
+    { label: '➕ Add Student', fn: renderAddStudent }
+  ] : [
+    { label: '✅ My Attendance', fn: renderStudentAttendance },
+    { label: '📝 My Marks', fn: renderStudentMarks },
+    { label: '🗓️ Schedule', fn: renderStudentSchedule }
+  ];
+
+  setApp(`
+    ${topbar()}
+    <div class="container">
+      <div class="card">
+        <h2>Dashboard</h2>
+        <div class="nav-grid">
+          ${tiles.map((t, i) => `<div class="nav-tile" data-i="${i}">${t.label}</div>`).join('')}
+        </div>
+      </div>
+    </div>
+  `);
+  attachLogout();
+  document.querySelectorAll('.nav-tile').forEach((el, i) => {
+    el.onclick = () => tiles[i].fn();
+  });
+}
+
+function dashboardHeader(title) {
+  return `${topbar()}<div class="container"><span class="back-link" id="backDash">&larr; Dashboard</span><div class="card"><h2>${title}</h2><div id="msgBox"></div>`;
+}
+function attachBack() {
+  attachLogout();
+  document.getElementById('backDash').onclick = renderDashboard;
+}
+
+// ============================================================================
+// ADD STUDENT (teacher)
+// ============================================================================
+function renderAddStudent() {
+  setApp(`
+    ${dashboardHeader('Add Student')}
+    <label>First Name</label><input id="fName">
+    <label>Middle Name</label><input id="mName">
+    <label>Last Name</label><input id="lName">
+    <div class="grid-2">
+      <div><label>Standard</label><input id="aStd" placeholder="e.g. 10"></div>
+      <div><label>Board</label><input id="aBoard" placeholder="e.g. CBSE"></div>
+    </div>
+    <label>Roll No</label><input id="rollNo">
+    <label>Phone Number</label><input id="phone" placeholder="10-digit number">
+    <button class="primary" id="addBtn">Add Student</button>
+    <div id="credBox"></div>
+    </div></div>
+  `);
+  attachBack();
+  document.getElementById('addBtn').onclick = async () => {
+    const res = await api('addStudent', {
+      firstName: document.getElementById('fName').value.trim(),
+      middleName: document.getElementById('mName').value.trim(),
+      lastName: document.getElementById('lName').value.trim(),
+      standard: document.getElementById('aStd').value.trim(),
+      board: document.getElementById('aBoard').value.trim(),
+      rollNo: document.getElementById('rollNo').value.trim(),
+      phone: document.getElementById('phone').value.trim()
+    });
+    const msgBox = document.getElementById('msgBox');
+    if (res.success) {
+      msgBox.innerHTML = msg('Student added successfully.', 'success');
+      document.getElementById('credBox').innerHTML = `
+        <div class="credential-box">
+          <strong>Share these login details with the student (WhatsApp):</strong><br>
+          Username: <b>${res.username}</b><br>
+          PIN: <b>${res.pin}</b>
+        </div>`;
+    } else {
+      msgBox.innerHTML = msg(res.error, 'error');
+    }
+  };
+}
+
+// ============================================================================
+// TEACHER: ATTENDANCE
+// ============================================================================
+function renderTeacherAttendance() {
+  const today = new Date().toISOString().slice(0,10);
+  setApp(`
+    ${dashboardHeader('Mark Attendance')}
+    <div class="grid-2">
+      <div><label>Standard</label><input id="std" placeholder="e.g. 10"></div>
+      <div><label>Board</label><input id="board" placeholder="e.g. CBSE"></div>
+    </div>
+    <label>Date</label><input id="date" type="date" value="${today}">
+    <button class="primary" id="loadBtn">Load Students</button>
+    <div id="listArea" style="margin-top:14px;"></div>
+    </div></div>
+  `);
+  attachBack();
+  document.getElementById('loadBtn').onclick = loadAttendanceList;
+}
+
+async function loadAttendanceList() {
+  const std = document.getElementById('std').value.trim();
+  const board = document.getElementById('board').value.trim();
+  const date = document.getElementById('date').value;
+  const msgBox = document.getElementById('msgBox');
+  if (!std || !board || !date) { msgBox.innerHTML = msg('Fill Standard, Board and Date', 'error'); return; }
+
+  const [studentsRes, attRes] = await Promise.all([
+    api('getStudents', { standard: std, board }, 'GET'),
+    api('getAttendance', { standard: std, board, date }, 'GET')
+  ]);
+  if (!studentsRes.success) { msgBox.innerHTML = msg(studentsRes.error, 'error'); return; }
+  msgBox.innerHTML = '';
+
+  const existingMap = {};
+  (attRes.records || []).forEach(r => existingMap[r.StudentID] = r.Status);
+
+  const students = studentsRes.students || [];
+  if (students.length === 0) {
+    document.getElementById('listArea').innerHTML = '<p class="muted">No students found for this Standard/Board.</p>';
+    return;
+  }
+
+  const rowsHtml = students.map(s => {
+    const status = existingMap[s.StudentID] || 'Absent';
+    return `
+      <tr data-id="${s.StudentID}" data-name="${fullName(s)}">
+        <td>${fullName(s)}</td>
+        <td>
+          <button class="toggle-btn ${status==='Present'?'active-present':''}" data-status="Present">Present</button>
+          <button class="toggle-btn ${status==='Absent'?'active-absent':''}" data-status="Absent">Absent</button>
+        </td>
+      </tr>`;
+  }).join('');
+
+  document.getElementById('listArea').innerHTML = `
+    <table><thead><tr><th>Student</th><th>Status</th></tr></thead>
+    <tbody id="attBody">${rowsHtml}</tbody></table>
+    <button class="primary" id="submitAtt">Submit Attendance</button>
+  `;
+
+  document.querySelectorAll('#attBody .toggle-btn').forEach(btn => {
+    btn.onclick = () => {
+      const row = btn.closest('tr');
+      row.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active-present','active-absent'));
+      btn.classList.add(btn.dataset.status === 'Present' ? 'active-present' : 'active-absent');
+    };
+  });
+
+  document.getElementById('submitAtt').onclick = async () => {
+    const records = [];
+    document.querySelectorAll('#attBody tr').forEach(row => {
+      const activeBtn = row.querySelector('.active-present, .active-absent');
+      records.push({
+        studentId: row.dataset.id,
+        name: row.dataset.name,
+        standard: std,
+        board: board,
+        date: date,
+        status: activeBtn ? activeBtn.dataset.status : 'Absent'
+      });
+    });
+    const res = await api('markAttendance', { records });
+    msgBox.innerHTML = res.success
+      ? msg(`Saved. Updated: ${res.updated}, Added: ${res.added}`, 'success')
+      : msg(res.error, 'error');
+  };
+}
+
+function fullName(s) { return [s.FirstName, s.MiddleName, s.LastName].filter(Boolean).join(' '); }
+
+// ============================================================================
+// STUDENT: ATTENDANCE (calendar view)
+// ============================================================================
+async function renderStudentAttendance() {
+  setApp(`${dashboardHeader('My Attendance')}<div id="calArea">Loading...</div></div></div>`);
+  attachBack();
+  const res = await api('getMyAttendance', {}, 'GET');
+  if (!res.success) { document.getElementById('calArea').innerHTML = msg(res.error, 'error'); return; }
+
+  const byMonth = {};
+  (res.records || []).forEach(r => {
+    const d = String(r.Date).slice(0,10);
+    const month = d.slice(0,7);
+    if (!byMonth[month]) byMonth[month] = [];
+    byMonth[month].push({ date: d, status: r.Status });
+  });
+
+  const months = Object.keys(byMonth).sort().reverse();
+  if (months.length === 0) {
+    document.getElementById('calArea').innerHTML = '<p class="muted">No attendance records yet.</p>';
+    return;
+  }
+
+  document.getElementById('calArea').innerHTML = months.map(m => `
+    <h3>${m}</h3>
+    <table><thead><tr><th>Date</th><th>Status</th></tr></thead><tbody>
+      ${byMonth[m].sort((a,b)=>a.date.localeCompare(b.date)).map(r => `
+        <tr><td>${r.date}</td><td><span class="status-pill ${r.status==='Present'?'pill-present':'pill-absent'}">${r.status}</span></td></tr>
+      `).join('')}
+    </tbody></table>
+  `).join('');
+}
+
+// ============================================================================
+// TEACHER: BULK MARKS ENTRY
+// ============================================================================
+function renderTeacherMarks() {
+  const today = new Date().toISOString().slice(0,10);
+  setApp(`
+    ${dashboardHeader('Update Test Marks')}
+    <div class="grid-2">
+      <div><label>Standard</label><input id="mStd"></div>
+      <div><label>Board</label><input id="mBoard"></div>
+    </div>
+    <div class="grid-2">
+      <div><label>Subject</label><input id="mSubject"></div>
+      <div><label>Test Name</label><input id="mTest" placeholder="e.g. Unit Test 1"></div>
+    </div>
+    <div class="grid-2">
+      <div><label>Max Marks</label><input id="mMax" type="number" value="100"></div>
+      <div><label>Date</label><input id="mDate" type="date" value="${today}"></div>
+    </div>
+    <button class="primary" id="loadMarksBtn">Load Students</button>
+    <div id="marksListArea" style="margin-top:14px;"></div>
+    </div></div>
+  `);
+  attachBack();
+  document.getElementById('loadMarksBtn').onclick = loadMarksList;
+}
+
+async function loadMarksList() {
+  const std = document.getElementById('mStd').value.trim();
+  const board = document.getElementById('mBoard').value.trim();
+  const subject = document.getElementById('mSubject').value.trim();
+  const testName = document.getElementById('mTest').value.trim();
+  const maxMarks = document.getElementById('mMax').value.trim();
+  const date = document.getElementById('mDate').value;
+  const msgBox = document.getElementById('msgBox');
+
+  if (!std || !board || !subject || !testName || !maxMarks || !date) {
+    msgBox.innerHTML = msg('Please fill all fields', 'error'); return;
+  }
+
+  const [studentsRes, marksRes] = await Promise.all([
+    api('getStudents', { standard: std, board }, 'GET'),
+    api('getMarks', { standard: std, board, subject, testName, date }, 'GET')
+  ]);
+  if (!studentsRes.success) { msgBox.innerHTML = msg(studentsRes.error, 'error'); return; }
+  msgBox.innerHTML = '';
+
+  const existingMap = {};
+  (marksRes.records || []).forEach(r => existingMap[r.StudentID] = r.MarksObtained);
+
+  const students = studentsRes.students || [];
+  if (students.length === 0) {
+    document.getElementById('marksListArea').innerHTML = '<p class="muted">No students found.</p>';
+    return;
+  }
+
+  const rowsHtml = students.map(s => `
+    <tr data-id="${s.StudentID}" data-name="${fullName(s)}">
+      <td>${fullName(s)}</td>
+      <td><input type="number" min="0" max="${maxMarks}" class="markInput" value="${existingMap[s.StudentID] !== undefined ? existingMap[s.StudentID] : ''}" placeholder="/ ${maxMarks}"></td>
+    </tr>`).join('');
+
+  document.getElementById('marksListArea').innerHTML = `
+    <table><thead><tr><th>Student</th><th>Marks</th></tr></thead>
+    <tbody id="marksBody">${rowsHtml}</tbody></table>
+    <button class="primary" id="submitMarks">Save Marks</button>
+  `;
+
+  document.getElementById('submitMarks').onclick = async () => {
+    const records = [];
+    document.querySelectorAll('#marksBody tr').forEach(row => {
+      const val = row.querySelector('.markInput').value;
+      if (val === '') return;
+      records.push({
+        studentId: row.dataset.id,
+        name: row.dataset.name,
+        standard: std, board, subject, testName,
+        maxMarks, marksObtained: val, date
+      });
+    });
+    if (records.length === 0) { msgBox.innerHTML = msg('Enter at least one mark', 'error'); return; }
+    const res = await api('bulkUpdateMarks', { records });
+    msgBox.innerHTML = res.success
+      ? msg(`Saved. Updated: ${res.updated}, Added: ${res.added}${res.skipped ? ', Skipped: ' + res.skipped : ''}`, 'success')
+      : msg(res.error, 'error');
+  };
+}
+
+// ============================================================================
+// STUDENT: VIEW MARKS
+// ============================================================================
+async function renderStudentMarks() {
+  setApp(`${dashboardHeader('My Marks')}<div id="marksViewArea">Loading...</div></div></div>`);
+  attachBack();
+  const res = await api('getMyMarks', {}, 'GET');
+  if (!res.success) { document.getElementById('marksViewArea').innerHTML = msg(res.error, 'error'); return; }
+
+  const records = res.records || [];
+  if (records.length === 0) {
+    document.getElementById('marksViewArea').innerHTML = '<p class="muted">No marks recorded yet.</p>';
+    return;
+  }
+
+  const bySubject = {};
+  records.forEach(r => {
+    if (!bySubject[r.Subject]) bySubject[r.Subject] = [];
+    bySubject[r.Subject].push(r);
+  });
+
+  document.getElementById('marksViewArea').innerHTML = Object.keys(bySubject).map(subj => `
+    <h3>${subj}</h3>
+    <table><thead><tr><th>Test</th><th>Date</th><th>Score</th></tr></thead><tbody>
+      ${bySubject[subj].map(r => {
+        const pct = (r.MarksObtained / r.MaxMarks) * 100;
+        const cls = pct >= 80 ? 'pill-present' : (pct >= 50 ? 'pill-mid' : 'pill-absent');
+        return `<tr>
+          <td>${r.TestName}</td>
+          <td>${String(r.Date).slice(0,10)}</td>
+          <td><span class="status-pill ${cls}">${r.MarksObtained} / ${r.MaxMarks}</span></td>
+        </tr>`;
+      }).join('')}
+    </tbody></table>
+  `).join('');
+}
+
+// ============================================================================
+// TEACHER: SCHEDULE MANAGEMENT
+// ============================================================================
+function renderTeacherSchedule() {
+  setApp(`
+    ${dashboardHeader('Weekly Schedule')}
+    <div class="grid-2">
+      <div><label>Standard</label><input id="sStd"></div>
+      <div><label>Board</label><input id="sBoard"></div>
+    </div>
+    <button class="primary" id="loadSchedBtn">Load Schedule</button>
+    <div id="schedArea" style="margin-top:14px;"></div>
+    <hr style="margin:18px 0; border-color: var(--border);">
+    <h2>Add Class Slot</h2>
+    <div class="grid-2">
+      <div><label>Subject</label><input id="newSubject"></div>
+      <div><label>Day</label>
+        <select id="newDay">${DAYS.map(d=>`<option>${d}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div><label>Start Time</label><input id="newStart" type="time"></div>
+      <div><label>End Time</label><input id="newEnd" type="time"></div>
+    </div>
+    <label>Teacher Name (optional)</label><input id="newTeacher" value="${state.name}">
+    <label>Notes (optional)</label><input id="newNotes">
+    <button class="primary" id="addSlotBtn">Add Slot</button>
+    </div></div>
+  `);
+  attachBack();
+  document.getElementById('loadSchedBtn').onclick = loadTeacherSchedule;
+  document.getElementById('addSlotBtn').onclick = addScheduleSlot;
+}
+
+async function loadTeacherSchedule() {
+  const std = document.getElementById('sStd').value.trim();
+  const board = document.getElementById('sBoard').value.trim();
+  const msgBox = document.getElementById('msgBox');
+  if (!std || !board) { msgBox.innerHTML = msg('Fill Standard and Board', 'error'); return; }
+  const res = await api('getSchedule', { standard: std, board }, 'GET');
+  if (!res.success) { msgBox.innerHTML = msg(res.error, 'error'); return; }
+  msgBox.innerHTML = '';
+  renderScheduleGrid(res.entries || [], document.getElementById('schedArea'), true);
+}
+
+function renderScheduleGrid(entries, container, editable) {
+  const byDay = {};
+  DAYS.forEach(d => byDay[d] = []);
+  entries.forEach(e => { if (byDay[e.DayOfWeek]) byDay[e.DayOfWeek].push(e); });
+
+  let html = '';
+  DAYS.forEach(day => {
+    const slots = byDay[day].sort((a,b) => a.StartTime.localeCompare(b.StartTime));
+    if (slots.length === 0) return;
+    html += `<div class="schedule-day">${day}</div>`;
+    slots.forEach(s => {
+      html += `<div class="schedule-slot">
+        <span><b>${s.Subject}</b> &middot; ${s.StartTime}–${s.EndTime}${s.Teacher ? ' &middot; ' + s.Teacher : ''}${s.Notes ? ' &middot; ' + s.Notes : ''}</span>
+        ${editable ? `<button class="danger" data-id="${s.ScheduleID}">Delete</button>` : ''}
+      </div>`;
+    });
+  });
+  container.innerHTML = html || '<p class="muted">No classes scheduled yet.</p>';
+
+  if (editable) {
+    container.querySelectorAll('.danger').forEach(btn => {
+      btn.onclick = async () => {
+        await api('deleteScheduleEntry', { scheduleId: btn.dataset.id });
+        loadTeacherSchedule();
+      };
+    });
+  }
+}
+
+async function addScheduleSlot() {
+  const std = document.getElementById('sStd').value.trim();
+  const board = document.getElementById('sBoard').value.trim();
+  const subject = document.getElementById('newSubject').value.trim();
+  const dayOfWeek = document.getElementById('newDay').value;
+  const startTime = document.getElementById('newStart').value;
+  const endTime = document.getElementById('newEnd').value;
+  const teacher = document.getElementById('newTeacher').value.trim();
+  const notes = document.getElementById('newNotes').value.trim();
+  const msgBox = document.getElementById('msgBox');
+
+  if (!std || !board || !subject || !startTime || !endTime) {
+    msgBox.innerHTML = msg('Fill Standard, Board, Subject, Start and End time', 'error'); return;
+  }
+  const res = await api('addScheduleEntry', { standard: std, board, subject, dayOfWeek, startTime, endTime, teacher, notes });
+  if (res.success) {
+    msgBox.innerHTML = msg('Slot added.', 'success');
+    loadTeacherSchedule();
+  } else {
+    msgBox.innerHTML = msg(res.error, 'error');
+  }
+}
+
+// ============================================================================
+// STUDENT: VIEW SCHEDULE
+// ============================================================================
+async function renderStudentSchedule() {
+  setApp(`${dashboardHeader('Weekly Schedule')}<div id="studentSchedArea">Loading...</div></div></div>`);
+  attachBack();
+  const res = await api('getMySchedule', {}, 'GET');
+  if (!res.success) { document.getElementById('studentSchedArea').innerHTML = msg(res.error, 'error'); return; }
+  renderScheduleGrid(res.entries || [], document.getElementById('studentSchedArea'), false);
+}
+
+// ============================================================================
+// INIT
+// ============================================================================
+render();
+</script>
+</body>
+</html>
